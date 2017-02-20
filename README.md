@@ -4,7 +4,7 @@ Minimalist script for manually executing EPP commands with client-certificate au
 ## Usage
 
 ```
-$ python eppclient.py --server nzrsepp.vagrant.dev --certificate crt.pem --private-key key.pem login.xml info.xml 
+$ python eppclient.py --server nzrsepp.vagrant.dev --certificate crt.pem --private-key key.pem login.xml check.xml
 2017-02-21 10:37:54,475 INFO  - Making SSL connection to nzrsepp.vagrant.dev:700
 2017-02-21 10:37:54,544 INFO Trying to read EPP Greeting from server
 2017-02-21 10:37:54,544 INFO   - Trying to read 4-byte header from socket
