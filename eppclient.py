@@ -29,27 +29,28 @@ parser.add_argument(
     help='EPP server hostname or ip'
 )
 parser.add_argument(
+    '--port',
+    nargs='?',
+    type=int,
+    default=700,
+    help='EPP server port'
+)
+parser.add_argument(
     '--certificate',
     nargs='?',
-    default=os.path.join(
-        os.getcwd(), 'Certs/cert.pem'
-    ),
+    default=None,
     help='client certificate file'
 )
 parser.add_argument(
     '--private-key',
     nargs='?',
-    default=os.path.join(
-        os.getcwd(), 'Certs/key.pem'
-    ),
+    default=None,
     help='private key file'
 )
 parser.add_argument(
     '--ca-certificate',
     nargs='?',
-    default=os.path.join(
-        os.getcwd(), 'Certs/nzrs-ca-chain.pem'
-    ),
+    default=None,
     help='file with the bundle of CAs'
 )
 args = parser.parse_args()
@@ -60,7 +61,7 @@ class epp(object):
     def __init__(self):
         #: Set host
         self.host = args.server
-        self.port = 700
+        self.port = args.port
 
         #: Find size of C integers
         self.format_32 = self.format_32()
@@ -134,18 +135,18 @@ class epp(object):
         )
         self.ssl.send(length)
 
-        return self.ssl.send(epp_as_string + "\r\n")
+        return self.ssl.send((epp_as_string + "\r\n").encode())
 
 #: Connect to EPP server
 client = epp()
 
 #: Fetch greeting
 logging.info('Trying to read EPP Greeting from server')
-logging.info(client.read())
+logging.info(client.read().decode())
 
 for fname in args.xmlfiles:
     with open(fname, 'r') as f:
         logging.info('Sending {0}'.format(fname))
         client.write(f.read())
         time.sleep(1)
-        logging.info('Response from server: \n{0}'.format(client.read()))
+        logging.info('Response from server: \n{0}'.format(client.read().decode()))
