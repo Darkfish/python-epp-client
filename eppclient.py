@@ -25,7 +25,7 @@ parser.add_argument(
 parser.add_argument(
     '--server',
     nargs='?',
-    default='srstestepp.srs.net.nz',
+    default='epp.qa.irs.net.nz',
     help='EPP server hostname or ip'
 )
 parser.add_argument(
@@ -114,7 +114,7 @@ class epp(object):
 
     def read(self, schema_critical=True):
         logging.info('  - Trying to read 4-byte header from socket')
-        length = self.ssl.read(4)
+        length = self.read_until(4)
         if length:
             i = self.int_from_net(length)-4
             logging.info(
@@ -122,7 +122,21 @@ class epp(object):
             )
 
             #: Return raw data
-            return(self.ssl.read(i))
+            return(self.read_until(i))
+
+    def read_until(self, total_bytes):
+        '''Buffer when self.ssl.recv (can't use MSG_WAITALL)'''
+        buffer = bytes()
+        while len(buffer) < total_bytes:
+            i = total_bytes - len(buffer)
+            buffer += self.ssl.recv(i)
+            logging.info(
+                '  - Received {0}/{1} bytes'.format(
+                    len(buffer),
+                    total_bytes
+                )
+            )
+        return(buffer)
 
     def write(self, xml):
         epp_as_string = xml
