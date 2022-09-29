@@ -53,6 +53,13 @@ parser.add_argument(
     default=None,
     help='file with the bundle of CAs'
 )
+parser.add_argument(
+    '--wait',
+    nargs='?',
+    type=int,
+    default=None,
+    help='Time to wait between commands'
+)
 args = parser.parse_args()
 
 
@@ -160,7 +167,8 @@ logging.info(client.read().decode())
 
 for fname in args.xmlfiles:
     with open(fname, 'r') as f:
+        if args.wait:
+            time.sleep(args.wait)
         logging.info('Sending {0}'.format(fname))
         client.write(f.read())
-        time.sleep(1)
         logging.info('Response from server: \n{0}'.format(client.read().decode()))
