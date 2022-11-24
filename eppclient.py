@@ -60,6 +60,12 @@ parser.add_argument(
     default=None,
     help='Time to wait between commands'
 )
+parser.add_argument(
+    '--disable-ssl',
+    action='store_true',
+    default=None,
+    help='Disable SSL support (not RFC compliant)'
+)
 args = parser.parse_args()
 
 
@@ -74,19 +80,32 @@ class epp(object):
         self.format_32 = self.format_32()
 
         #: Create connection to EPP server
-        logging.info(' - Making SSL connection to {0}:{1}'.format(
-            self.host,
-            self.port
-        ))
+        if args.disable_ssl:
+            logging.info(' - Making plaintext connection to {0}:{1}'.format(
+                self.host,
+                self.port
+            ))
+        else:
+            logging.info(' - Making SSL connection to {0}:{1}'.format(
+                self.host,
+                self.port
+            ))
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(301)
         self.socket.connect((self.host, self.port))
-        self.ssl = ssl.wrap_socket(
-            self.socket,
-            certfile=args.certificate,
-            keyfile=args.private_key,
-            ca_certs=args.ca_certificate
-        )
+        if not args.disable_ssl:
+            context = ssl.create_default_context(
+                cafile = args.ca_certificate,
+                purpose = ssl.Purpose.SERVER_AUTH
+            )
+            context.load_cert_chain(
+                certfile=args.certificate,
+                keyfile=args.private_key
+            )
+            self.socket_ssl = context.wrap_socket(
+                self.socket,
+                server_hostname = self.host
+            )
 
     def __del__(self):
         try:
@@ -132,11 +151,14 @@ class epp(object):
             return(self.read_until(i))
 
     def read_until(self, total_bytes):
-        '''Buffer when self.ssl.recv (can't use MSG_WAITALL)'''
+        '''Buffer when self.socket[_ssl].recv (can't use MSG_WAITALL)'''
         buffer = bytes()
         while len(buffer) < total_bytes:
             i = total_bytes - len(buffer)
-            buffer += self.ssl.recv(i)
+            if args.disable_ssl:
+                buffer += self.socket.recv(i)
+            else:
+                buffer += self.socket_ssl.recv(i)
             logging.info(
                 '  - Received {0}/{1} bytes'.format(
                     len(buffer),
@@ -154,9 +176,12 @@ class epp(object):
             'Sending XML ({0} bytes):\n'.format(
                 len(epp_as_string) + 4 + 2) + xml
         )
-        self.ssl.send(length)
-
-        return self.ssl.send((epp_as_string + "\r\n").encode())
+        if args.disable_ssl:
+            self.socket.send(length)
+            return self.socket.send((epp_as_string + "\r\n").encode())
+        else:
+            self.socket_ssl.send(length)
+            return self.socket_ssl.send((epp_as_string + "\r\n").encode())
 
 #: Connect to EPP server
 client = epp()
