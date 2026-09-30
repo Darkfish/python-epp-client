@@ -156,9 +156,12 @@ class epp(object):
         while len(buffer) < total_bytes:
             i = total_bytes - len(buffer)
             if args.disable_ssl:
-                buffer += self.socket.recv(i)
+                chunk = self.socket.recv(i)
             else:
-                buffer += self.socket_ssl.recv(i)
+                chunk = self.socket_ssl.recv(i)
+            if not chunk:
+                raise ConnectionError('Connection closed while reading EPP frame')
+            buffer += chunk
             logging.info(
                 '  - Received {0}/{1} bytes'.format(
                     len(buffer),
@@ -168,20 +171,19 @@ class epp(object):
         return(buffer)
 
     def write(self, xml):
-        epp_as_string = xml
+        payload = (xml + "\r\n").encode('utf-8')
         # +4 for the length field itself (section 4 mandates that)
-        # +2 for the CRLF at the end
-        length = self.int_to_net(len(epp_as_string) + 4 + 2)
+        length = self.int_to_net(len(payload) + 4)
         logging.info(
             'Sending XML ({0} bytes):\n'.format(
-                len(epp_as_string) + 4 + 2) + xml
+                len(payload) + 4) + xml
         )
         if args.disable_ssl:
-            self.socket.send(length)
-            return self.socket.send((epp_as_string + "\r\n").encode())
+            self.socket.sendall(length)
+            return self.socket.sendall(payload)
         else:
-            self.socket_ssl.send(length)
-            return self.socket_ssl.send((epp_as_string + "\r\n").encode())
+            self.socket_ssl.sendall(length)
+            return self.socket_ssl.sendall(payload)
 
 #: Connect to EPP server
 client = epp()
@@ -191,7 +193,7 @@ logging.info('Trying to read EPP Greeting from server')
 logging.info(client.read().decode())
 
 for fname in args.xmlfiles:
-    with open(fname, 'r') as f:
+    with open(fname, 'r', encoding='utf-8') as f:
         if args.wait:
             time.sleep(args.wait)
         logging.info('Sending {0}'.format(fname))

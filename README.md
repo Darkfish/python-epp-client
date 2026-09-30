@@ -1,6 +1,17 @@
 # python-epp-client
 Minimalist script for manually executing EPP commands with client-certificate auth
 
+## Tests
+
+Run the test suite using Python 3.11 or newer:
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
+Tests use the standard library and mock network connections, TLS setup, and waits;
+no EPP server, certificates, or extra packages are required.
+
 ## Usage
 
 ```
