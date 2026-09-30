@@ -6,6 +6,9 @@ import socket
 import logging
 import argparse
 
+# Local receive limit, including the four-byte EPP length header.
+MAX_FRAME_SIZE = 16 * 1024 * 1024
+
 #: Log items
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
                     level=logging.INFO)
@@ -142,7 +145,14 @@ class epp(object):
         logging.info('  - Trying to read 4-byte header from socket')
         length = self.read_until(4)
         if length:
-            i = self.int_from_net(length)-4
+            frame_length = self.int_from_net(length)
+            if not 4 <= frame_length <= MAX_FRAME_SIZE:
+                raise ValueError(
+                    'Invalid EPP frame length: {0} (expected 4 to {1} bytes)'.format(
+                        frame_length, MAX_FRAME_SIZE
+                    )
+                )
+            i = frame_length - 4
             logging.info(
                 '  - Found length header, trying to read {0} bytes'.format(i)
             )

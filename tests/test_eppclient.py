@@ -176,6 +176,35 @@ class EppClientTests(unittest.TestCase):
 
         self.sleep.assert_not_called()
 
+    def test_invalid_frame_lengths_raise_before_payload_read_on_both_transports(self):
+        for plaintext in (False, True):
+            for length in (0, 1, 2, 3, 16 * 1024 * 1024 + 1, 0xffffffff):
+                with self.subTest(plaintext=plaintext, length=length):
+                    transport = self.raw_socket if plaintext else self.tls_socket
+                    transport.reset_mock()
+                    transport.recv.side_effect = [struct.pack('>I', length)]
+
+                    with self.assertRaisesRegex(ValueError, 'Invalid EPP frame length'):
+                        self.run_client(*(['--disable-ssl'] if plaintext else []), self.xmlfile)
+
+                    transport.recv.assert_called_once_with(4)
+                    transport.sendall.assert_not_called()
+
+    def test_frame_length_boundaries_on_both_transports(self):
+        for plaintext in (False, True):
+            with self.subTest(plaintext=plaintext):
+                transport = self.raw_socket if plaintext else self.tls_socket
+                transport.reset_mock()
+                payload = b'x' * (16 * 1024 * 1024 - 4)
+                incoming = self.receive(transport, b'', payload)
+
+                self.run_client(*(['--disable-ssl'] if plaintext else []), self.xmlfile)
+
+                self.assertFalse(incoming)
+                self.assertEqual(transport.recv.call_args_list, [
+                    call(4), call(4), call(len(payload))])
+                self.log.assert_any_call('Response from server: \n' + payload.decode())
+
     def test_invalid_arguments_exit_before_connecting(self):
         for arguments in ([], ['--port', 'invalid', self.xmlfile],
                           ['--wait', 'invalid', self.xmlfile]):
